@@ -1,0 +1,85 @@
+import os
+import sys
+import subprocess
+import glob as glob
+import argparse 
+
+
+
+'''This program cleans up the openfoam cases, deletes the processors directories
+   - Can archive the cases
+   - Can go into the archive location and look for the oldest cases, deleting or zipping them to save space
+'''
+
+parser = argparse.ArgumentParser(prog='archive-v0.1',description='Cleans up OF cases, deletes old cases in archive')
+                    
+parser.add_argument("-t","--trial", required = True, type=int, nargs = 2,
+                    help='Identifies range of files to perform archival actions on.')
+# parser.add_argument("-m","--mesh", action="store_true",
+                    # help='Sets up meshing dicts and links geometry files. Will copy template case files if the trial folder is empty.')
+# parser.add_argument('-d',"--controlDict", action="store_true", 
+#                     help='Writes only controlDict for solver.')
+# parser.add_argument("--new", action="store_true", 
+#                     help='Writes a new caseSetup, will overwrite what is currently there if it exists!')
+# parser.add_argument("--modules", action="store_true", 
+#                     help='Shows all possible modules.')
+
+args = parser.parse_args()
+
+### Getting paths ###
+path = os.getcwd() #path of the case
+jobPath = os.path.abspath(os.path.join(path,os.pardir)) #path of the job i.e. 100001
+jobNumber = os.path.split(jobPath)[1] #job number i.e. 100001
+### End getting paths ###
+
+
+
+def main():
+    #finding the right trial folders
+    trialPaths = findCases()
+
+    print('\tFound {} trial folders to archive.'.format(len(trialPaths)))
+    for trialNumber in sorted(trialPaths.keys()):
+        print('\t\t{}: {}'.format(trialNumber,trialPaths[trialNumber]))
+
+    
+
+
+
+def findCases():
+    #check that script is run in the right place
+    if not os.path.split(path)[-1].lower() == 'cases':
+        print('ERROR! This script must be run from within the cases folder of a job directory.')
+        sys.exit()
+
+    trialRange = range(args.trial[0],args.trial[1]+1)
+    trialsList = glob.glob(os.path.join(path,'*'))
+    print('Checking for trial folders to archive...')
+    trialPaths = {}
+    for trial in trialsList:
+        #filter out the directories
+        if not os.path.isdir(trial):
+            continue
+        
+        #extract the trial number, could have formats like trial001, or trial001_half, 
+        #but we want only the number with no leading zeros, it should filter out trials
+        #that are named incorrectly
+        trialBase = os.path.split(trial)[-1]
+        trialNumberStr = ''.join(filter(str.isdigit,trialBase))
+        if trialNumberStr == '':
+            continue
+        trialNumber = int(trialNumberStr)
+
+        if trialNumber in trialRange:
+            trialPaths[trialNumber] = trial
+
+    return trialPaths        
+        
+
+        
+
+
+
+
+main()
+
